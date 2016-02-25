@@ -10,8 +10,6 @@
 #include "qtree.h"
 #include "prog_bar.h"
 
-#define BUFFER_SIZE 1024
-
 pthread_t tid;
 
 int main(int argc, char **argv) {
@@ -29,13 +27,13 @@ int main(int argc, char **argv) {
                 t1 = clock();
                 qt->compress(qt, "compressed.huff", optarg);
                 t2 = clock();
-                printf("Encoding completed in %.1f sec\n", ((float)t2 - (float)t1) / CLOCKS_PER_SEC);
+                printf("Encoding completed in %.10f sec\n", ((double)t2 - (double)t1) / CLOCKS_PER_SEC);
                 break;
             case 'd':
                 t1 = clock();
                 qt->decompress(qt, "decompressed.txt", optarg);
                 t2 = clock();
-                printf("Decoding completed in %.1f sec\n", ((float)t2 - (float)t1) / CLOCKS_PER_SEC); 
+                printf("Decoding completed in %.10f sec\n", ((double)t2 - (double)t1) / CLOCKS_PER_SEC); 
                 break;
             default:
                 abort();

@@ -1,10 +1,11 @@
 #include "qtree.h"
 
+static qtreeNode* _initQTreeNode(void);
 static bool _insertToQueue(qtree*, qtreeNode*, qtreeNode*, bool);
 static void _traverseTree(qtreeNode*, void (*)(qtreeNode*, uint8_t, uint32_t, codeInfo[]), 
                             uint8_t, uint32_t, codeInfo[]);
-static void _visitNode(qtreeNode*, uint8_t, uint32_t, codeInfo[]);
-static bool _add(qtree*, uint8_t, uint32_t);
+static inline void _visitNode(qtreeNode*, uint8_t, uint32_t, codeInfo[]);
+static inline bool _add(qtree*, uint8_t, uint32_t);
 static bool _rebuildTree(qtree*, FILE*);
 static bool _buildTree(qtree*);
 static bool _buildQueue(qtree*, const char*);
@@ -50,8 +51,8 @@ static bool _insertToQueue(qtree* self, qtreeNode* dst, qtreeNode* src,  bool ri
     return true;
 }
 
-static bool _add(qtree* self, uint8_t symb, uint32_t value) {
-    qtreeNode* newNode = initQTreeNode();
+static inline bool _add(qtree* self, uint8_t symb, uint32_t value) {
+    qtreeNode* newNode = _initQTreeNode();
     qtreeNode *cPtr = self->head;
     
     newNode->symb = symb;
@@ -102,7 +103,7 @@ static bool _buildTree(qtree* self) {
     qtreeNode *firstNode, *secondNode, *newNode, *cPtr;
 
     if (self->head == self->tail) {
-        self->root = initQTreeNode();
+        self->root = _initQTreeNode();
         self->root->lchild = self->head;
 
         return true;
@@ -111,7 +112,7 @@ static bool _buildTree(qtree* self) {
     while (self->head != self->tail) {     
         firstNode = self->head;
         secondNode = firstNode->nextNode;
-        newNode = initQTreeNode();
+        newNode = _initQTreeNode();
 
         newNode->weight = firstNode->weight + secondNode->weight;
         newNode->lchild = firstNode;
@@ -137,8 +138,6 @@ static bool _buildTree(qtree* self) {
             self->root = newNode;
         }
     }
-
-    //printf("HEAD - %d, TAIL - %d\n", self->head->weight, self->tail->weight);
 
     return true;
 }
@@ -174,7 +173,7 @@ static uint32_t _reverse_bits(uint32_t v, uint32_t codeLength) {
     return r;
 }
 
-static void _visitNode(qtreeNode* root, uint8_t depth, 
+static inline void _visitNode(qtreeNode* root, uint8_t depth,
                         uint32_t code, codeInfo codes[]) {
 
     uint32_t reversedCode;
@@ -184,7 +183,7 @@ static void _visitNode(qtreeNode* root, uint8_t depth,
     }
 }
 
-static void _traverseTree(qtreeNode* root, void (*visitNode)(qtreeNode*, uint8_t, uint32_t, codeInfo[]), 
+static void _traverseTree(qtreeNode* root, void (*visitNode)(qtreeNode*, uint8_t, uint32_t, codeInfo[]),
                             uint8_t depth, uint32_t code, codeInfo codes[]) {
     if (root) {
         visitNode(root, depth, code, codes);
@@ -196,10 +195,11 @@ static void _traverseTree(qtreeNode* root, void (*visitNode)(qtreeNode*, uint8_t
 }
 
 static bool _generateCodeTable(qtree* self) {
+    codeInfo *codeTable = self->codes;
     _traverseTree(self->root, _visitNode, (uint8_t)0, (uint32_t)0, self->codes);
 
     for (int i = 0; i < 256; ++i) {
-        if ((self->codes[i].length) > 0) {
+        if ((codeTable[i].length) > 0) {
             (self->numberOfCodes)++;
         }
     }
@@ -209,12 +209,13 @@ static bool _generateCodeTable(qtree* self) {
 
 static bool _writeCodesToFile(qtree* self, const char* dstFileName) {
     codeInfo codes[self->numberOfCodes];
+    codeInfo *codeTable = self->codes;
 
     FILE *dstFile = fopen(dstFileName, "w+");
 
     for (int i = 0, j = 0; i < 256; ++i) {
-        if ((self->codes[i].length) > 0) {
-            codes[j++] = self->codes[i];
+        if ((codeTable[i].length) > 0) {
+            codes[j++] = codeTable[i];
         }
     }
 
@@ -232,42 +233,50 @@ static bool _writeDataToFile(qtree* self, const char* dstFileName, const char* s
     FILE *dstFile = fopen(dstFileName, "a+");
     FILE *srcFile = fopen(srcFileName, "r");
 
+    codeInfo *codeTable = self->codes;
     uint8_t readBuff[BUFFER_SIZE];
+    uint8_t nextReadedCharAsciiCode;
+    uint8_t nextReadedCharCodeLength;
+
     uint32_t writeBuff[BUFFER_SIZE] = {0};
-    uint32_t processedBytes = 0;
     uint32_t readedChars;
+    uint32_t tempCode_1 = 0, tempCode_2 = 0;
     uint32_t writedBlocks = 0;
-    int32_t freeBlocks = BUFFER_SIZE, freeBits = 32, tempCode_1 = 0, tempCode_2 = 0;
+    uint32_t i;
+
+    int32_t freeBlocks = BUFFER_SIZE, freeBits = BITS_IN_BLOCK;
     int32_t availableBits = 0;
 
     while ((freeBlocks) > 0) {
         if ((bool)(readedChars = fread(readBuff, sizeof(uint8_t), BUFFER_SIZE, srcFile))) {
 
-            for (int i = 0; i < readedChars; i++) {
-                availableBits = freeBits - self->codes[readBuff[i]].length;
+            for (i = 0; i < readedChars; i++) {
+                nextReadedCharAsciiCode = readBuff[i];
+                nextReadedCharCodeLength = codeTable[nextReadedCharAsciiCode].length;
+
+                availableBits = freeBits - nextReadedCharCodeLength;
 
                 if (availableBits > 0) {
-                    tempCode_1 = self->codes[readBuff[i]].code;
-                    tempCode_1 <<= (32 - freeBits);
+                    tempCode_1 = codeTable[nextReadedCharAsciiCode].code;
+                    tempCode_1 <<= (BITS_IN_BLOCK - freeBits);
                     //write code of another readed character
                     writeBuff[BUFFER_SIZE - freeBlocks] |= tempCode_1;
 
-                    freeBits -= self->codes[readBuff[i]].length;
+                    freeBits -= nextReadedCharCodeLength;
                 } else {
-                    tempCode_1 = (self->codes[readBuff[i]].code << (32 - self->codes[readBuff[i]].length + abs(availableBits)));
-                    tempCode_2 = (self->codes[readBuff[i]].code >> freeBits);
-                    freeBits = 32 + availableBits;
+                    tempCode_1 = (codeTable[nextReadedCharAsciiCode].code << (BITS_IN_BLOCK - nextReadedCharCodeLength + abs(availableBits)));
+                    tempCode_2 = (codeTable[nextReadedCharAsciiCode].code >> freeBits);
+                    freeBits = BITS_IN_BLOCK + availableBits;
                     writeBuff[BUFFER_SIZE - freeBlocks] |= tempCode_1;
                     freeBlocks--;
                
                     if (freeBlocks == 0) {
-                        processedBytes += BUFFER_SIZE * sizeof(uint32_t);
                         fwrite(writeBuff, sizeof(uint32_t), BUFFER_SIZE, dstFile);
                         writedBlocks++;
                         memset(writeBuff, 0, sizeof(writeBuff));
                         
                         freeBlocks = BUFFER_SIZE;
-                        freeBits = 32;
+                        freeBits = BITS_IN_BLOCK;
                 
                         if (i >= readedChars) break;
                         
@@ -283,7 +292,7 @@ static bool _writeDataToFile(qtree* self, const char* dstFileName, const char* s
                 writedBlocks++;
             }
 
-            self->archInfo.remainingBits = (sizeof(writeBuff) * 8) - (((freeBlocks - 1) * sizeof(uint32_t) * 8) + freeBits);
+            self->archInfo.remainingBits = (sizeof(writeBuff) * 8) - (((freeBlocks - 1) * BITS_IN_BLOCK) + freeBits);
             self->archInfo.numberOfBlocks = writedBlocks;
             break;
         }
@@ -339,14 +348,14 @@ static bool _readArchiveInfo(qtree* self, FILE* srcFile) {
 }
 
 static bool _decodeFile(qtree* self, FILE* dstFile, FILE* srcFile) {
-    uint32_t currentBitMask = 1;
-    uint32_t currentBlock = 0;
-    uint32_t readedBlocksNumber = 0;
-    uint32_t totalReadedBlocks = 0;
     int32_t remainingSignificantBits = self->archInfo.remainingBits;
     uint32_t readBuff[BUFFER_SIZE] = {0};
     uint8_t writeBuff[BUFFER_SIZE] = {0};
     uint32_t currentWriteBuffByte = 0;
+    uint32_t readedBlocksNumber = 0;
+    uint32_t totalReadedBlocks = 0;
+    register uint32_t currentBitMask = 1;
+    uint32_t currentBlock = 0;
     bool isLastBlock = false;
 
     qtreeNode* cNodePtr = self->root;
@@ -362,11 +371,11 @@ static bool _decodeFile(qtree* self, FILE* dstFile, FILE* srcFile) {
             currentBitMask = 1;
             
             while (currentBitMask) {
-                
 
                 if (cNodePtr->symb != 0) {
                     writeBuff[currentWriteBuffByte] = cNodePtr->symb;
                     currentWriteBuffByte++; 
+
                     cNodePtr = self->root;
 
                     if (currentWriteBuffByte == BUFFER_SIZE) {
@@ -379,7 +388,6 @@ static bool _decodeFile(qtree* self, FILE* dstFile, FILE* srcFile) {
                 cNodePtr = (readBuff[currentBlock] & currentBitMask) ? cNodePtr->rchild : cNodePtr->lchild;
 
                 if (cNodePtr == NULL) {
-                    printf("BAAAADDD\n");
                     goto finish;
                 }
 
@@ -407,7 +415,7 @@ finish:
 }
 
 static void rebuildNodes(qtreeNode* root, uint8_t length, uint32_t code, uint8_t symb) {
-    qtreeNode *newNode = initQTreeNode();
+    qtreeNode *newNode = _initQTreeNode();
 
     if(length > 0) {
         if (code & 1) {
@@ -431,7 +439,7 @@ static bool _rebuildTree(qtree* self, FILE *srcFile) {
     codeInfo codes[numberOfCodes];
 
     fread(codes, sizeof(codeInfo), numberOfCodes, srcFile);
-    self->root = initQTreeNode();
+    self->root = _initQTreeNode();
     
     for (int i = 0; i < numberOfCodes; ++i) {
         rebuildNodes(self->root, codes[i].length, codes[i].code, codes[i].character);
@@ -440,7 +448,7 @@ static bool _rebuildTree(qtree* self, FILE *srcFile) {
     return true;
 }
 
-qtreeNode* initQTreeNode(void) {
+qtreeNode* _initQTreeNode(void) {
     qtreeNode *newElement = (qtreeNode*) malloc(sizeof(qtreeNode));
  
     newElement->rchild = NULL;

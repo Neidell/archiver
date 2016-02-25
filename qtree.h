@@ -8,10 +8,8 @@
 #include <string.h> 
 #include <math.h>
 
-#define BUFFER_SIZE 1024
-
-#define minWeightNode(a,b) (((a->weight)<(b->weight))?(a):(b))
-#define maxWeightNode(a,b) (((a->weight)>(b->weight))?(a):(b))
+#define BUFFER_SIZE 8192
+#define BITS_IN_BLOCK 32
 
 typedef struct qtreeNode qtreeNode;
 typedef struct qtree qtree;
@@ -54,6 +52,5 @@ struct qtree {
 bool compress(qtree* self, const char* dstFileName, const char* srcFileName);
 bool decompress(qtree* self, const char* dstFileName, const char* srcFileName);
 qtree* initQTree(void);
-qtreeNode* initQTreeNode(void);
 
 #endif
