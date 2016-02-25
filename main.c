@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <time.h>
 
 #include "qtree.h"
@@ -26,7 +27,6 @@ int main(int argc, char **argv) {
         switch (c) {
             case 'c':
                 t1 = clock();
-                pthread_create(&(tid), NULL, &show_bar, qt->progress);
                 qt->compress(qt, "compressed.huff", optarg);
                 t2 = clock();
                 printf("Encoding completed in %.1f sec\n", ((float)t2 - (float)t1) / CLOCKS_PER_SEC);
@@ -42,25 +42,6 @@ int main(int argc, char **argv) {
         } 
 
     }
-/*
-    qt = initQTree();
 
-    qt->compress(qt, "compressed.huff", "big.txt");
-
-    free(qt);
-
-    t2 = clock();
-
-    qt = initQTree();
-    qt->decompress(qt, "decompressed.txt", "compressed.huff");
-
-    free(qt);
-
-    t3 = clock();
-
-    printf("\n");
-    printf("Encoding time: %.1f sec\n", ((float)t2 - (float)t1) / CLOCKS_PER_SEC);
-    printf("Decoding time: %.1f sec\n", ((float)t3 - (float)t2) / CLOCKS_PER_SEC);
-*/
     return 0;
 }

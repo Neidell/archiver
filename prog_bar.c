@@ -1,6 +1,6 @@
 #include "prog_bar.h"
 
-float progress = 0.0;
+/*float progress = 0.0;
 
 void* show_bar(void* progress) {
 	while (*progress < 1.0) {
@@ -30,4 +30,4 @@ void* show_bar(void* progress) {
 	printf("\n");
 
 	return NULL;
-}
+}*/
