@@ -4,4 +4,4 @@ CC = c11
 .PHONY: clean
 
 all: main.c huffman.c
-	gcc -o main main.c huffman.c prog_bar.c -pthread -I. $(CFLAGS) -std=c99 
+	gcc -o huff main.c huffman.c prog_bar.c -pthread -I. $(CFLAGS) -std=c99 

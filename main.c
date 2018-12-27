@@ -20,17 +20,17 @@ int main(int argc, char **argv) {
 	//pthread_create(&(tid), NULL, &show_bar, NULL);
     ARCH* arch = initArch();
 
-    while ((c = getopt(argc, argv, "c:d:")) != -1) {
+    while ((c = getopt(argc, argv, "c:x:")) != -1) {
         switch (c) {
             case 'c':
                 t1 = clock();
-                compress(arch, "compressed.huff", optarg);
+                compress(arch, optarg, argv[1]);
                 t2 = clock();
                 printf("Encoding completed in %.5f sec\n", ((double)t2 - (double)t1) / CLOCKS_PER_SEC);
                 break;
-            case 'd':
+            case 'x':
                 t1 = clock();
-                decompress(arch, "decompressed.txt", optarg);
+                decompress(arch, optarg, argv[1]);
                 t2 = clock();
                 printf("Decoding completed in %.5f sec\n", ((double)t2 - (double)t1) / CLOCKS_PER_SEC); 
                 break;
